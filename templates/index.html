@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP - Connected Multi-Role System</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 font-sans text-gray-800">
+
+    <!-- ================= AUTHENTICATION MODAL OVERLAY ================= -->
+    <div id="authOverlay" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white text-center">
+                <i class="fa-solid fa-shield-halved text-4xl mb-2 animate-pulse"></i>
+                <h2 id="authTitle" class="text-2xl font-bold tracking-tight">Campus ERP Gateway</h2>
+                <p id="authSubtitle" class="text-blue-100 text-sm mt-1">Sign in to access your dashboard</p>
+            </div>
+
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" id="authUsername" required class="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter username">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Security Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="authPassword" required class="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Select Portal Access Role</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer hover:bg-gray-50 transition text-center border-blue-500 bg-blue-50" id="labelStudent">
+                            <input type="radio" name="authRole" value="student" checked class="sr-only" onclick="updateRoleSelectionUI('student')">
+                            <i class="fa-solid fa-graduation-cap text-lg text-blue-600 mb-1"></i>
+                            <span class="text-xs font-bold text-gray-700">Student</span>
+                        </label>
+                        <label class="flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer hover:bg-gray-50 transition text-center border-gray-200" id="labelFaculty">
+                            <input type="radio" name="authRole" value="faculty" class="sr-only" onclick="updateRoleSelectionUI('faculty')">
+                            <i class="fa-solid fa-chalkboard-user text-lg text-green-600 mb-1"></i>
+                            <span class="text-xs font-bold text-gray-700">Faculty</span>
+                        </label>
+                        <label class="flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer hover:bg-gray-50 transition text-center border-gray-200" id="labelAdmin">
+                            <input type="radio" name="authRole" value="admin" class="sr-only" onclick="updateRoleSelectionUI('admin')">
+                            <i class="fa-solid fa-user-shield text-lg text-red-600 mb-1"></i>
+                            <span class="text-xs font-bold text-gray-700">Admin</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" id="authSubmitBtn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 rounded-xl shadow-md text-sm mt-2">
+                    Verify Identity & Sign In
+                </button>
+
+                <p class="text-center text-xs text-gray-500 mt-4">
+                    <span id="toggleText">Need to initialize your portal account?</span>
+                    <button type="button" onclick="toggleAuthInputState()" id="authToggleAction" class="text-blue-600 font-bold ml-1 hover:underline">Register Here</button>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MAIN CORE APP VIEW ================= -->
+    <div id="mainApplicationLayout" class="hidden">
+        <nav class="bg-blue-600 text-white shadow-lg px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-graduation-cap text-3xl"></i>
+                <span class="text-xl font-bold tracking-wide">CampusERP</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span id="userSessionBadge" class="px-4 py-1.5 rounded-full text-xs font-semibold flex items-center"></span>
+                <button onclick="terminateUserSession()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition cursor-pointer"><i class="fa-solid fa-right-from-bracket mr-1"></i> Sign Out</button>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            
+            <!-- STUDENT DASHBOARD VIEW Layer -->
+            <div id="studentDashboardContainer" class="hidden space-y-6 animate-fade-in">
+                <!-- Connected Attendance Summary Cards Widget -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                        <div class="p-3 bg-blue-100 text-blue-600 rounded-xl"><i class="fa-solid fa-calculator text-2xl"></i></div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Lectures</p>
+                            <h4 id="studentTotalLectures" class="text-2xl font-bold text-gray-800">0</h4>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                        <div class="p-3 bg-green-100 text-green-600 rounded-xl"><i class="fa-solid fa-circle-check text-2xl"></i></div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Attended Count</p>
+                            <h4 id="studentAttendedLectures" class="text-2xl font-bold text-gray-800">0</h4>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                        <div class="p-3 bg-gray-100 rounded-xl text-blue-600" id="attendanceColorIndicator"><i class="fa-solid fa-percent text-2xl"></i></div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Attendance Percentage</p>
+                            <h4 id="studentAttendancePercentage" class="text-2xl font-bold text-gray-800">0%</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Left Column: Milestone Submission Form -->
+                    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-100 h-fit">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa-solid fa-cloud-arrow-up text-blue-500 mr-2"></i>Submit Achievement Milestone</h3>
+                        <form id="studentActivityForm" onsubmit="addStudentActivity(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Student Name</label>
+                                <input type="text" id="actStudent" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100 font-semibold text-gray-600 shadow-inner" readonly>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Roll No</label>
+                                    <input type="text" id="actRollNo" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 45">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">GR No</label>
+                                    <input type="text" id="actGrNo" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="GR12049">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                                    <select id="actYear" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                        <option>First Year</option>
+                                        <option>Second Year</option>
+                                        <option>Third Year</option>
+                                        <option>Final Year</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                                    <input type="text" id="actDepartment" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., IT">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Activity/Achievement Name</label>
+                                <input type="text" id="actName" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Smart India Hackathon">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Classification Category</label>
+                                <select id="actType" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option>Technical</option><option>Sports</option><option>Cultural</option><option>Social (NSS/NCC)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Date Occurred</label>
+                                <input type="date" id="actDate" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Certificate Attachment (PDF)</label>
+                                <input type="file" id="actFile" required class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                            </div>
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm transition shadow-md cursor-pointer">Submit Milestone Verification</button>
+                        </form>
+                    </div>
+
+                    <!-- Right Column: Personal Achievement Submission History Tracking -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa-solid fa-clock-rotate-left text-blue-500 mr-2"></i>My Achievement Submission History Ledger</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-100 text-gray-600 text-xs font-semibold uppercase">
+                                        <th class="p-3 rounded-l-lg">Activity Title</th><th class="p-3">Category</th><th class="p-3">Date</th><th class="p-3 rounded-r-lg">Approval Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentOnlyTableBody" class="divide-y divide-gray-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FACULTY DASHBOARD VIEW Layer -->
+            <div id="facultyDashboardContainer" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+                <!-- Left Column: Attendance Logging Control Panel -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-100 h-fit space-y-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa-solid fa-calendar-check text-green-500 mr-2"></i>Log Student Attendance</h3>
+                        <form id="attendanceForm" onsubmit="addAttendanceRecord(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Student Name</label>
+                                <input type="text" id="attnStudent" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Enter student's full name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Roll No</label>
+                                <input type="text" id="attnRollNo" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Enter roll number">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Attendance Status</label>
+                                <select id="attnStatus" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                                    <option>Present</option>
+                                    <option>Absent</option>
+                                    <option>On Duty (OD)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Date Logged</label>
+                                <input type="date" id="attnDate" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg text-sm transition shadow-md cursor-pointer">Commit Attendance Metric</button>
+                        </form>
+                    </div>
+
+                    <!-- Verified Registered Students Lookup Directory -->
+                    <div class="border-t pt-4">
+                        <h4 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3"><i class="fa-solid fa-address-book text-gray-400 mr-1.5"></i>Class Roster Fast Selection</h4>
+                        <div id="facultyStudentRosterList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            <!-- Injected dynamically based on inputs -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Running Classroom Attendance Tracker Output Grid -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa-solid fa-clipboard-user text-green-500 mr-2"></i>Classroom Attendance Master Logs</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs font-semibold uppercase">
+                                    <th class="p-3 rounded-l-lg">Student Name</th><th class="p-3">Roll No</th><th class="p-3">Date</th><th class="p-3 rounded-r-lg">Attendance Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="facultyAttendanceTableBody" class="divide-y divide-gray-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN DASHBOARD APPROVAL CONTROL PANEL CONTAINER -->
+            <div id="adminDashboard" class="space-y-8 hidden">
+                <h2 class="text-3xl font-extrabold text-gray-900 border-b pb-3"><i class="fa-solid fa-user-shield text-red-600 mr-2"></i>Admin Dashboard Portal</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa-solid fa-hourglass-half text-yellow-500 mr-2"></i>Pending Validation Request Tasks Queue</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs font-semibold uppercase">
+                                    <th class="p-3 rounded-l-lg">Student Details</th><th class="p-3">Academic Info</th><th class="p-3">Activity Name</th><th class="p-3">Type Classification</th><th class="p-3 text-center">Certificate</th><th class="p-3 rounded-r-lg text-center">Action Parameters</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTableBody" class="divide-y divide-gray-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= APP LOGIC SCRIPTS ================= -->
+    <script>
+        let authMode = "login"; 
+        let selectedRole = "student"; 
+        let currentUserSession = null;
+
+        // Shared local state stores simulating database entities (now completely empty)
+        let localMilestoneDatabase = [];
+        let localAttendanceDatabase = [];
+
+        function updateRoleSelectionUI(role) {
+            selectedRole = role;
+            ['student', 'faculty', 'admin'].forEach(r => {
+                const element = document.getElementById(`label${r.charAt(0).toUpperCase() + r.slice(1)}`);
+                element.className = "flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer hover:bg-gray-50 transition text-center border-gray-200";
+            });
+            
+            const activeElement = document.getElementById(`label${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`);
+            if (role === 'student') {
+                activeElement.className = "flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer hover:bg-gray-50 transition text-center border-blue-500 bg-blue-50";
+            } else if (role === 'faculty') {
+                activeElement.className = "flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer hover:bg-gray-50 transition text-center border-green-500 bg-green-50";
+            } else if (role === 'admin') {
+                activeElement.className = "flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer hover:bg-gray-50 transition text-center border-red-500 bg-red-50";
+            }
+        }
+
+        function toggleAuthInputState() {
+            authMode = (authMode === "login") ? "register" : "login";
+            document.getElementById("authTitle").innerText = (authMode === "register") ? "Initialize Portal Credentials" : "Campus ERP Gateway";
+            document.getElementById("authSubtitle").innerText = (authMode === "register") ? "Register access keys inside system records logs" : "Sign in to access your dashboard";
+            document.getElementById("authSubmitBtn").innerText = (authMode === "register") ? "Confirm Account Setup" : "Verify Identity & Sign In";
+            document.getElementById("authToggleAction").innerText = (authMode === "register") ? "Log In Here" : "Register Here";
+            document.getElementById("toggleText").innerText = (authMode === "register") ? "Already registered your portal access profiles?" : "Need to initialize your portal account?";
+            document.getElementById("authForm").reset();
+            updateRoleSelectionUI('student');
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById("authUsername").value.trim();
+
+            if (authMode === "register") {
+                alert("🎉 Registration initialization profile complete. Proceeding onto identity validation.");
+                toggleAuthInputState();
+            } else {
+                currentUserSession = { username: username, role: selectedRole }; 
+                initializeAuthenticatedSessionView();
+            }
+        }
+
+        function initializeAuthenticatedSessionView() {
+            document.getElementById("authOverlay").classList.add("hidden");
+            document.getElementById("mainApplicationLayout").classList.remove("hidden");
+
+            const badge = document.getElementById("userSessionBadge");
+            const studentDashboard = document.getElementById("studentDashboardContainer");
+            const facultyDashboard = document.getElementById("facultyDashboardContainer");
+            const adminDashboard = document.getElementById("adminDashboard");
+
+            studentDashboard.classList.add("hidden");
+            facultyDashboard.classList.add("hidden");
+            adminDashboard.classList.add("hidden");
+
+            if(currentUserSession.role === "admin") {
+                badge.innerHTML = `<i class="fa-solid fa-user-shield mr-1.5 text-red-400"></i> Active: ${currentUserSession.username} (Admin)`;
+                badge.className = "bg-red-950 text-red-300 border border-red-700/50 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide";
+                adminDashboard.classList.remove("hidden");
+            } 
+            else if (currentUserSession.role === "faculty") {
+                badge.innerHTML = `<i class="fa-solid fa-chalkboard-user mr-1.5 text-green-400"></i> Active: ${currentUserSession.username} (Faculty)`;
+                badge.className = "bg-green-950 text-green-300 border border-green-700/50 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide";
+                facultyDashboard.classList.remove("hidden");
+                document.getElementById("attnDate").valueAsDate = new Date();
+            } 
+            else {
+                badge.innerHTML = `<i class="fa-solid fa-graduation-cap mr-1.5 text-blue-400"></i> Active: ${currentUserSession.username}`;
+                badge.className = "bg-blue-950 text-blue-300 border border-blue-700/50 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide";
+                studentDashboard.classList.remove("hidden");
+                
+                document.getElementById("actStudent").value = currentUserSession.username;
+                document.getElementById("actDate").valueAsDate = new Date();
+            }
+            
+            fetchAndRenderActivities();
+        }
+
+        function processStudentAttendanceMetrics() {
+            if (currentUserSession && currentUserSession.role === "student") {
+                const currentStudentName = currentUserSession.username.toLowerCase();
+                const trackingRecords = localAttendanceDatabase.filter(item => item.student.toLowerCase() === currentStudentName);
+                
+                const totalConducted = trackingRecords.length;
+                const totalAttended = trackingRecords.filter(item => item.status === "Present" || item.status === "On Duty (OD)").length;
+                
+                const ratioPercent = totalConducted > 0 ? Math.round((totalAttended / totalConducted) * 100) : 0;
+
+                document.getElementById("studentTotalLectures").innerText = totalConducted;
+                document.getElementById("studentAttendedLectures").innerText = totalAttended;
+                document.getElementById("studentAttendancePercentage").innerText = `${ratioPercent}%`;
+
+                const indicatorBox = document.getElementById("attendanceColorIndicator");
+                if(ratioPercent >= 75) {
+                    indicatorBox.className = "p-3 bg-green-100 text-green-600 rounded-xl";
+                } else if(ratioPercent >= 50) {
+                    indicatorBox.className = "p-3 bg-amber-100 text-amber-600 rounded-xl";
+                } else {
+                    indicatorBox.className = "p-3 bg-red-100 text-red-600 rounded-xl";
+                }
+            }
+        }
+
+        function renderFacultyRosterLookup() {
+            const rosterContainer = document.getElementById("facultyStudentRosterList");
+            rosterContainer.innerHTML = "";
+
+            const uniqueTrackingMap = {};
+            localAttendanceDatabase.forEach(item => {
+                uniqueTrackingMap[item.student] = item.roll_no;
+            });
+
+            const keys = Object.keys(uniqueTrackingMap);
+            if (keys.length === 0) {
+                rosterContainer.innerHTML = `<p class="text-xs text-gray-400 italic bg-gray-100 p-3 rounded-lg text-center">No students registered in log yet.</p>`;
+                return;
+            }
+
+            keys.forEach(studentName => {
+                const rollNo = uniqueTrackingMap[studentName];
+                const cleanName = studentName.replace(/"/g, '\\"');
+                rosterContainer.innerHTML += `
+                    <div onclick="selectStudentForAttendance('${cleanName}', '${rollNo}')" class="flex justify-between items-center bg-gray-50 border border-gray-200 p-2 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition text-xs">
+                        <span class="font-semibold text-gray-700">${studentName}</span>
+                        <span class="bg-gray-200 px-2 py-0.5 rounded text-gray-600 font-mono">Roll: ${rollNo}</span>
+                    </div>`;
+            });
+        }
+
+        function selectStudentForAttendance(name, roll) {
+            document.getElementById("attnStudent").value = name;
+            document.getElementById("attnRollNo").value = roll;
+        }
+
+        async function fetchAndRenderActivities() {
+            const studentBody = document.getElementById("studentOnlyTableBody");
+            const facultyBody = document.getElementById("facultyAttendanceTableBody");
+            const adminBody = document.getElementById("adminTableBody");
+            
+            studentBody.innerHTML = ""; facultyBody.innerHTML = ""; adminBody.innerHTML = "";
+
+            processStudentAttendanceMetrics();
+            renderFacultyRosterLookup();
+
+            localMilestoneDatabase.forEach(act => {
+                let badge = act.status === 'Approved' ? '<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i>Approved</span>' : act.status === 'Rejected' ? '<span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-xs font-bold"><i class="fa-solid fa-circle-xmark mr-1"></i>Rejected</span>' : '<span class="bg-yellow-100 text-yellow-700 px-2.5 py-1 rounded-full text-xs font-bold"><i class="fa-solid fa-clock mr-1"></i>Pending</span>';
+                
+                if (currentUserSession.role === "student" && act.student.toLowerCase() === currentUserSession.username.toLowerCase()) {
+                    studentBody.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-3 font-medium text-gray-700">${act.name}</td>
+                            <td class="p-3 text-gray-600">${act.type}</td>
+                            <td class="p-3 text-gray-400 text-xs">${act.date}</td>
+                            <td class="p-3">${badge}</td>
+                        </tr>`;
+                }
+
+                if (currentUserSession.role === "admin" && act.status === "Pending") {
+                    adminBody.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-3">
+                                <div class="font-semibold text-gray-700">${act.student}</div>
+                                <div class="text-xs text-gray-500">Dept: ${act.department}</div>
+                            </td>
+                            <td class="p-3 text-xs text-gray-600">
+                                <div>Roll: ${act.roll_no}</div>
+                                <div>GR: ${act.gr_no}</div>
+                                <div class="italic text-gray-400">${act.year}</div>
+                            </td>
+                            <td class="p-3 text-gray-600 font-medium">${act.name}</td>
+                            <td class="p-3 text-gray-600 text-xs">${act.type}</td>
+                            <td class="p-3 text-center">
+                                <span class="text-blue-500 text-xs font-medium inline-flex items-center"><i class="fa-solid fa-file-pdf mr-1"></i>Attached</span>
+                            </td>
+                            <td class="p-3 text-center space-x-2 whitespace-nowrap">
+                                <button onclick="approveActivity(${act.id}, 'approve')" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer">Approve</button>
+                                <button onclick="approveActivity(${act.id}, 'reject')" class="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer">Reject</button>
+                            </td>
+                        </tr>`;
+                }
+            });
+
+            localAttendanceDatabase.forEach(attn => {
+                let statusBadge = attn.status === 'Present' ? '<span class="text-green-700 font-semibold bg-green-50 px-2.5 py-1 rounded border border-green-200">Present</span>' : attn.status === 'Absent' ? '<span class="text-red-700 font-semibold bg-red-50 px-2.5 py-1 rounded border border-red-200">Absent</span>' : '<span class="text-amber-700 font-semibold bg-amber-50 px-2.5 py-1 rounded border border-amber-200">On Duty (OD)</span>';
+                facultyBody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-3 font-semibold text-gray-700">${attn.student}</td>
+                        <td class="p-3 text-gray-600 font-medium">${attn.roll_no}</td>
+                        <td class="p-3 text-gray-400 text-xs">${attn.date}</td>
+                        <td class="p-3">${statusBadge}</td>
+                    </tr>`;
+            });
+
+            if(studentBody && studentBody.innerHTML === "") studentBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400 italic text-xs">No records submitted under your account profile.</td></tr>`;
+            if(facultyBody && facultyBody.innerHTML === "") facultyBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400 italic text-xs">No current attendance records.</td></tr>`;
+            if(adminBody && adminBody.innerHTML === "") adminBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400 italic text-xs">No pending evaluation items.</td></tr>`;
+        }
+
+        function addStudentActivity(e) {
+            e.preventDefault();
+            const newRecord = {
+                id: Date.now(),
+                student: document.getElementById("actStudent").value,
+                name: document.getElementById("actName").value,
+                type: document.getElementById("actType").value,
+                date: document.getElementById("actDate").value,
+                roll_no: document.getElementById("actRollNo").value,
+                gr_no: document.getElementById("actGrNo").value,
+                year: document.getElementById("actYear").value,
+                department: document.getElementById("actDepartment").value,
+                status: "Pending"
+            };
+            
+            localMilestoneDatabase.push(newRecord);
+            alert("🎉 Milestone submission entry saved successfully to verification queue.");
+            document.getElementById("studentActivityForm").reset();
+            document.getElementById("actStudent").value = currentUserSession.username; 
+            fetchAndRenderActivities();
+        }
+
+        function addAttendanceRecord(e) {
+            e.preventDefault();
+            const newAttn = {
+                student: document.getElementById("attnStudent").value.trim(),
+                roll_no: document.getElementById("attnRollNo").value.trim(),
+                status: document.getElementById("attnStatus").value,
+                date: document.getElementById("attnDate").value
+            };
+
+            localAttendanceDatabase.unshift(newAttn);
+            alert("📋 Attendance committed to classroom ledger logs seamlessly.");
+            document.getElementById("attendanceForm").reset();
+            document.getElementById("attnDate").valueAsDate = new Date();
+            fetchAndRenderActivities();
+        }
+
+        function approveActivity(id, actionType) {
+            const targetIndex = localMilestoneDatabase.findIndex(item => item.id === id);
+            if(targetIndex !== -1) {
+                localMilestoneDatabase[targetIndex].status = (actionType === 'approve') ? 'Approved' : 'Rejected';
+                alert(`Submission status updated successfully.`);
+                fetchAndRenderActivities();
+            }
+        }
+
+        function terminateUserSession() {
+            currentUserSession = null; authMode = "login";
+            document.getElementById("mainApplicationLayout").classList.add("hidden");
+            document.getElementById("authOverlay").classList.remove("hidden");
+            toggleAuthInputState();
+        }
+    </script>
+</body>
+</html>
